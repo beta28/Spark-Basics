@@ -3,6 +3,8 @@ package com.spark.kafka.streaming;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
@@ -14,10 +16,20 @@ import org.apache.spark.streaming.kafka010.KafkaUtils;
 import org.apache.spark.streaming.kafka010.LocationStrategies;
 import scala.Tuple2;
 
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SparkKafka {
     public static void main(String[] argv) throws Exception {
+
+        //setting logger to error
+        Logger.getLogger("org").setLevel(Level.ERROR);
+        Logger.getLogger("akka").setLevel(Level.ERROR);
 
         // Configure Spark to connect to Kafka running on local machine
         Map<String, Object> kafkaParams = new HashMap<>();
@@ -33,18 +45,21 @@ public class SparkKafka {
         //Configure Spark to listen messages in topic test
         Collection<String> topics = Arrays.asList("test");
 
+
         SparkConf conf = new SparkConf().setMaster("local").setAppName("SparkKafka10WordCount");
 
+
         //Read messages in batch of 30 seconds
-        JavaStreamingContext javaStreamingContext = new JavaStreamingContext(conf, Durations.seconds(30));
+        JavaStreamingContext javaStreamingContext = new JavaStreamingContext(conf, Durations.seconds(1));
 
         // Start reading messages from Kafka and get DStream
         final JavaInputDStream<ConsumerRecord<String, String>> stream =
                 KafkaUtils.createDirectStream(javaStreamingContext, LocationStrategies.PreferConsistent(),
                         ConsumerStrategies.Subscribe(topics, kafkaParams));
 
-        // Read value of each message from Kafka and return it
+
         JavaDStream<String> lines = stream.map(kafkaRecord -> kafkaRecord.value());
+
 
         // Break every message into words and return list of words
         JavaDStream<String> words = lines.flatMap(line -> Arrays.asList(line.split(" ")).iterator());
@@ -53,12 +68,18 @@ public class SparkKafka {
         JavaPairDStream<String, Integer> wordMap = words.mapToPair(word -> new Tuple2<>(word, 1));
 
 
-        // Count occurance of each word
+        // Count occurrence of each word
         JavaPairDStream<String, Integer> wordCount = wordMap.reduceByKey((Integer first, Integer second) -> first + second);
 
 
-        //Print the word count
-        wordCount.print();
+        // writes to the output file
+        wordCount.foreachRDD(rdd -> {
+            if (!rdd.isEmpty()) {
+                Map<String, Integer> map = rdd.collectAsMap();
+                for (Map.Entry<String, Integer> entry : map.entrySet())
+                    Files.write(Paths.get("output.txt"), (entry.getKey() + "," + entry.getValue() + "\n").getBytes(), StandardOpenOption.APPEND);
+            }
+        });
 
         javaStreamingContext.start();
         javaStreamingContext.awaitTermination();
