@@ -58,7 +58,7 @@ public class SparkKafka {
                         ConsumerStrategies.Subscribe(topics, kafkaParams));
 
 
-        JavaDStream<String> lines = stream.map(kafkaRecord -> kafkaRecord.value());
+        JavaDStream<String> lines = stream.map(ConsumerRecord::value);
 
 
         // Break every message into words and return list of words
