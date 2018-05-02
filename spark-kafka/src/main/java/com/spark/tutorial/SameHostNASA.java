@@ -25,7 +25,7 @@ public class SameHostNASA implements Serializable {
         Logger.getLogger("org").setLevel(Level.OFF);
 
         JavaSparkContext javaSparkContext = new JavaSparkContext(new SparkConf().setAppName("sameHostName").setMaster("local"));
-        /*javaSparkContext
+        javaSparkContext
                 .textFile("src/resource/nasa_19950701.tsv")
                 .map(lines -> lines.split("\t")[0])
                 .intersection(javaSparkContext
@@ -33,7 +33,7 @@ public class SameHostNASA implements Serializable {
                         .map(lines -> lines.split("\t")[0]))
                 .filter(lines -> !lines.contains("host"))
                 .collect()
-                .forEach(System.out::println);*/
+                .forEach(System.out::println);
 
 
          /* "in/nasa_19950701.tsv" file contains 10000 log lines from one of NASA's apache server for July 1st, 1995.
